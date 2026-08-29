@@ -1,5 +1,7 @@
 import fastf1
 import matplotlib.pyplot as plt
+#Force graduations
+from matplotlib.ticker import MultipleLocator
 #Avoid overinfo
 fastf1.set_log_level('WARNING')
 
@@ -42,9 +44,7 @@ markers = {
     'MEDIUM':'.',
     'HARD':'+'
 }
-
 fig2 = plt.figure()
-
 for stint, data in TabEx1.groupby('Stint'):  
     compound = data['Compound'].iloc[0]
     plt.plot(
@@ -52,12 +52,37 @@ for stint, data in TabEx1.groupby('Stint'):
         data['LapTime_sec'], 
         markers[compound], 
         label=f"Stint {int(stint)} : {compound}"
-        )
-
+    )
 plt.title('Stints')
 plt.xlabel('Tyre age')
 plt.ylabel('Lap time [s]')
 
+
+clean_laps = driver_laps.loc[
+    driver_laps['PitInTime'].isna() & 
+    driver_laps['PitOutTime'].isna()
+].copy()
+clean_laps['LapTime_sec'] = clean_laps['LapTime'].dt.total_seconds()
+
+fig3 = plt.figure()
+for stint, data in clean_laps.groupby('Stint'):
+    compound = data['Compound'].iloc[0]
+    plt.plot(
+        data['TyreLife'],
+        data['LapTime_sec'],
+        markers[compound],
+        label = f"Stint {int(stint)} : {compound}"
+    )
+plt.title('Stints with clean laps')
+plt.xlabel('Tyre age')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
 plt.close(fig1)
+plt.close(fig2)
+plt.close(fig3)
 plt.legend()
 plt.show()
+
+print(len(clean_laps))
