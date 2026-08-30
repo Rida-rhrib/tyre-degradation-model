@@ -115,9 +115,28 @@ plt.ylabel('Lap time [s]')
 plt.gca().xaxis.set_major_locator(MultipleLocator(1))
 plt.grid(True, alpha=0.25)
 
+#Add Lap time delta column in model_laps (difference between two consecutive laps of the same stint)
+model_laps['LapTimeDelta'] = model_laps.groupby('Stint')['LapTime_sec'].diff()
+#print(model_laps[['LapNumber','TyreLife','LapTime_sec','LapTimeDelta']].loc[model_laps['Stint'] == 3])
+
+#Correcting so that Lap time delta is calculated only if the laps are consecutive
+model_laps['LapNumberDelta'] = model_laps.groupby('Stint')['LapNumber'].diff()
+model_laps['LapTimeDelta'] = model_laps['LapTimeDelta'].where(model_laps['LapNumberDelta']==1)
+#print(model_laps[['LapNumber','LapNumberDelta','TyreLife','LapTime_sec','LapTimeDelta']])
+
+#Sorting lap time deltas to flag possible outliers
+model_laps['AbsLapTimeDelta'] = model_laps['LapTimeDelta'].abs()
+#print(model_laps[['LapNumber','Stint','TyreLife','LapTime_sec','LapTimeDelta','AbsLapTimeDelta']].sort_values(by=['AbsLapTimeDelta'], ascending=False).head(10))
+
+model_laps['Sector1Time_sec'] = model_laps['Sector1Time'].dt.total_seconds()
+model_laps['Sector2Time_sec'] = model_laps['Sector2Time'].dt.total_seconds()
+model_laps['Sector3Time_sec'] = model_laps['Sector3Time'].dt.total_seconds()
+
+print(model_laps[['LapNumber','TyreLife','LapTime_sec','Sector1Time_sec','Sector2Time_sec','Sector3Time_sec']].loc[(model_laps['LapNumber']>=39) & (model_laps['LapNumber']<=43)])
 
 plt.close(fig1)
 plt.close(fig2)
 plt.close(fig3)
+
 plt.legend()
-plt.show()
+#plt.show()
