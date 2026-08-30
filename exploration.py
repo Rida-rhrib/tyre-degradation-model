@@ -57,7 +57,7 @@ plt.title('Stints')
 plt.xlabel('Tyre age')
 plt.ylabel('Lap time [s]')
 
-
+#First filter : Pit laps
 clean_laps = driver_laps.loc[
     driver_laps['PitInTime'].isna() & 
     driver_laps['PitOutTime'].isna()
@@ -79,10 +79,45 @@ plt.ylabel('Lap time [s]')
 plt.gca().xaxis.set_major_locator(MultipleLocator(1))
 plt.grid(True, alpha=0.25)
 
+TabEx3 = clean_laps[[
+    'LapNumber', 'LapTime_sec', 'Stint', 'Compound', 'TyreLife', 'TrackStatus', 'IsAccurate', 'Position'
+]].copy()
+
+#print(TabEx3.loc[(TabEx3['LapNumber']==39) | (TabEx3['LapNumber']==40)])
+#print(TabEx3)
+#print(clean_laps['TrackStatus'].value_counts())
+#print(TabEx3[['LapNumber','LapTime_sec','Stint','TyreLife','TrackStatus']].loc[TabEx3['TrackStatus']!='1'])
+
+#2nd filter : Green flag & Accurate laps (FastF1 library criteria)
+valid_laps_mask = (
+    (driver_laps['TrackStatus'] == '1') &
+    (driver_laps['IsAccurate'])
+)
+
+model_laps = clean_laps.loc[valid_laps_mask].copy()
+
+#print(len(model_laps))
+#print(model_laps[['LapNumber']])
+
+fig4 = plt.figure()
+for stint, data in model_laps.groupby('Stint'):
+    compound = data['Compound'].iloc[0]
+    plt.plot(
+        data['TyreLife'],
+        data['LapTime_sec'],
+        markers[compound],
+        label = f"Stint {int(stint)} : {compound}"
+    )
+
+plt.title('Stints with model laps')
+plt.xlabel('Tyre age')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+
 plt.close(fig1)
 plt.close(fig2)
 plt.close(fig3)
 plt.legend()
 plt.show()
-
-print(len(clean_laps))
