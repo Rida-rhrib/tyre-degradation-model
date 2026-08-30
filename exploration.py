@@ -1,4 +1,5 @@
 import fastf1
+import numpy as np
 import matplotlib.pyplot as plt
 #Force graduations
 from matplotlib.ticker import MultipleLocator
@@ -132,11 +133,62 @@ model_laps['Sector1Time_sec'] = model_laps['Sector1Time'].dt.total_seconds()
 model_laps['Sector2Time_sec'] = model_laps['Sector2Time'].dt.total_seconds()
 model_laps['Sector3Time_sec'] = model_laps['Sector3Time'].dt.total_seconds()
 
-print(model_laps[['LapNumber','TyreLife','LapTime_sec','Sector1Time_sec','Sector2Time_sec','Sector3Time_sec']].loc[(model_laps['LapNumber']>=39) & (model_laps['LapNumber']<=43)])
+#print(model_laps[['LapNumber','TyreLife','LapTime_sec','Sector1Time_sec','Sector2Time_sec','Sector3Time_sec']].loc[(model_laps['LapNumber']>=39) & (model_laps['LapNumber']<=43)])
+
+#Isolation of stint 2 for first linear model
+hard_stint = model_laps.loc[model_laps['Stint']==2].copy()
+#print(hard_stint[['LapNumber','TyreLife','LapTime_sec']])
+
+x = hard_stint['TyreLife']
+y = hard_stint['LapTime_sec']
+
+#Coefficients of the linear regression
+slope, intercept = np.polyfit(x,y,1)
+#print(round(intercept,3),round(slope,3))
+
+hard_stint['PredictedLapTime'] = intercept+slope*hard_stint['TyreLife']
+
+fig5 = plt.figure()
+compound = hard_stint['Compound'].iloc[0]
+plt.plot(x,y,markers[compound],label='Lap time')
+plt.plot(x,hard_stint['PredictedLapTime'],label='Predicted time')
+
+plt.title('Linear regression of 2nd stint (hard)')
+plt.xlabel('Tyre age')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+#Introduction of residual
+hard_stint['Residual'] = hard_stint['LapTime_sec'] - hard_stint['PredictedLapTime']
+
+fig6 = plt.figure()
+plt.plot(hard_stint['TyreLife'],hard_stint['Residual'],'+')
+plt.axhline(0,color='r')
+
+plt.title('Residual of linear regression 2nd stint')
+plt.xlabel('Tyre age [laps]')
+plt.ylabel('Residual [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+mean_residual = hard_stint['Residual'].mean()
+RMSE = np.sqrt(1/len(hard_stint['Residual']) * (hard_stint['Residual']**2).sum())
+max_abs_residual = hard_stint['Residual'].abs().max()
+print(
+    f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s'
+)
+
+SSE = (hard_stint['Residual']**2).sum()
+SST = ((hard_stint['LapTime_sec']-hard_stint['LapTime_sec'].mean())**2).sum()
+R2 = 1 - SSE/SST
+print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
 
 plt.close(fig1)
 plt.close(fig2)
 plt.close(fig3)
+plt.close(fig4)
+plt.close(fig5)
 
-plt.legend()
+#plt.legend()
 #plt.show()
