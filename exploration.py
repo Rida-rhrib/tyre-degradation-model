@@ -175,20 +175,105 @@ plt.grid(True, alpha=0.25)
 mean_residual = hard_stint['Residual'].mean()
 RMSE = np.sqrt(1/len(hard_stint['Residual']) * (hard_stint['Residual']**2).sum())
 max_abs_residual = hard_stint['Residual'].abs().max()
-print(
-    f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s'
-)
+#print(f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s')
 
 SSE = (hard_stint['Residual']**2).sum()
 SST = ((hard_stint['LapTime_sec']-hard_stint['LapTime_sec'].mean())**2).sum()
 R2 = 1 - SSE/SST
-print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
+#print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
+
+#Comparing lap times with same Tyre age & compound to isolate track's and fuel's (+e) evolution
+TabEx5 = model_laps.loc[model_laps['Stint']!=2].pivot(columns='Stint',index='TyreLife',values='LapTime_sec')
+TabEx5 = TabEx5.rename(columns={1:'LapTime_stint1',3:'LapTime_stint3'})
+TabEx5 = TabEx5.reset_index()
+TabEx5.columns.name = None
+TabEx5['DeltaTime_stints'] = TabEx5['LapTime_stint3']-TabEx5['LapTime_stint1']
+TabEx5 = TabEx5.loc[TabEx5['DeltaTime_stints'].notna()]
+#print(TabEx5[['TyreLife','LapTime_stint1','LapTime_stint3','DeltaTime_stints']])
+
+#print(f'Delta time between stint 3 and 1 data : \nMean = {round(TabEx5['DeltaTime_stints'].mean(),3)}s \nStandard deviation = {round(TabEx5['DeltaTime_stints'].std(),3)}s \nMin = {round(TabEx5['DeltaTime_stints'].min(),3)}s and Max = {round(TabEx5['DeltaTime_stints'].max(),3)}s')
+#print(f'Mean gain per lap = {round(TabEx5['DeltaTime_stints'].mean()/40,3)}s')
+
+#First model of fuel effect
+#bf (fuel effect s/lap) = - qf (fuel consuption kg/lap) * kf (mass effect s/kg)
+#Hypothesis : 20% precision on qf & kf
+qf = 1.8
+kf = 0.020
+#Extreme cases
+#print(f'qf_low kf_low : bfuel = {round(-qf*kf*0.8**2, 3)} s/lap; bremaining = {round(0.061-(-qf*kf*0.8**2), 3)} s/lap \nqf_low kf_high (or vice versa) : bfuel = {round(-qf*kf*0.8*1.2, 3)} s/lap; bremaining = {round(0.061-(-qf*kf*0.8*1.2), 3)} s/lap \nqf_high kf_hig : bfuel = {round(-qf*kf*1.2**2, 3)} s/lap; bremaining = {round(0.061-(-qf*kf*1.2**2), 3)} s/lap')
+
+#After bibliography :
+qf = 1.775
+qfmin = 1.7
+qfmax = 1.85
+
+kf = 0.031
+kfmin = 0.025
+kfmax = 0.037
+
+FuelEffectPerLap = qf*kf
+
+hard_stint['FuelCorrectedLapTime'] = hard_stint['LapTime_sec'] + (hard_stint['LapNumber'] - hard_stint['LapNumber'].min())*FuelEffectPerLap
+#print(hard_stint[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bf, af = np.polyfit(x, hard_stint['FuelCorrectedLapTime'], 1)
+#print(round(af,3),round(bf,3))
+
+hard_stint['PredictedFuelCorrectedLapTime'] = af + bf * hard_stint['TyreLife']
+hard_stint['FuelCorrectedResidual'] = hard_stint['FuelCorrectedLapTime'] - hard_stint['PredictedFuelCorrectedLapTime']
+
+FuelCorrectedSSE = (hard_stint['FuelCorrectedResidual']**2).sum()
+FuelCorrectedRMSE = np.sqrt(1/len(hard_stint['FuelCorrectedResidual'])*FuelCorrectedSSE)
+FuelCorrectedSST = ((hard_stint['FuelCorrectedLapTime'] - hard_stint['FuelCorrectedLapTime'].mean())**2).sum()
+FuelCorrectedR2 = 1 - FuelCorrectedSSE/FuelCorrectedSST
+
+#print(f'SSE = {round(FuelCorrectedSSE,3)}\nRMSE = {round(FuelCorrectedRMSE,3)}s\nSST = {round(FuelCorrectedSST,3)}\nR2 = {round(FuelCorrectedR2,3)}')
+
+
+MinFuelEffectPerLap = qfmin*kfmin
+
+hard_stint['MinFuelCorrectedLapTime'] = hard_stint['LapTime_sec'] + (hard_stint['LapNumber'] - hard_stint['LapNumber'].min())*MinFuelEffectPerLap
+#print(hard_stint[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bfmin, afmin = np.polyfit(x, hard_stint['MinFuelCorrectedLapTime'], 1)
+print(round(afmin,3),round(bfmin,3))
+
+hard_stint['PredictedMinFuelCorrectedLapTime'] = afmin + bfmin * hard_stint['TyreLife']
+hard_stint['MinFuelCorrectedResidual'] = hard_stint['MinFuelCorrectedLapTime'] - hard_stint['PredictedMinFuelCorrectedLapTime']
+
+MinFuelCorrectedSSE = (hard_stint['MinFuelCorrectedResidual']**2).sum()
+MinFuelCorrectedRMSE = np.sqrt(1/len(hard_stint['MinFuelCorrectedResidual'])*MinFuelCorrectedSSE)
+MinFuelCorrectedSST = ((hard_stint['MinFuelCorrectedLapTime'] - hard_stint['MinFuelCorrectedLapTime'].mean())**2).sum()
+MinFuelCorrectedR2 = 1 - MinFuelCorrectedSSE/MinFuelCorrectedSST
+
+#print(f'SSE = {round(MinFuelCorrectedSSE,3)}\nRMSE = {round(MinFuelCorrectedRMSE,3)}s\nSST = {round(MinFuelCorrectedSST,3)}\nR2 = {round(MinFuelCorrectedR2,3)}')
+
+
+
+MaxFuelEffectPerLap = qfmax*kfmax
+
+hard_stint['MaxFuelCorrectedLapTime'] = hard_stint['LapTime_sec'] + (hard_stint['LapNumber'] - hard_stint['LapNumber'].min())*MaxFuelEffectPerLap
+#print(hard_stint[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bfmax, afmax = np.polyfit(x, hard_stint['MaxFuelCorrectedLapTime'], 1)
+print(round(afmax,3),round(bfmax,3))
+
+hard_stint['PredictedMaxFuelCorrectedLapTime'] = afmax + bfmax * hard_stint['TyreLife']
+hard_stint['MaxFuelCorrectedResidual'] = hard_stint['MaxFuelCorrectedLapTime'] - hard_stint['PredictedMaxFuelCorrectedLapTime']
+
+MaxFuelCorrectedSSE = (hard_stint['MaxFuelCorrectedResidual']**2).sum()
+MaxFuelCorrectedRMSE = np.sqrt(1/len(hard_stint['MaxFuelCorrectedResidual'])*MaxFuelCorrectedSSE)
+MaxFuelCorrectedSST = ((hard_stint['MaxFuelCorrectedLapTime'] - hard_stint['MaxFuelCorrectedLapTime'].mean())**2).sum()
+MaxFuelCorrectedR2 = 1 - MaxFuelCorrectedSSE/MaxFuelCorrectedSST
+
+#print(f'SSE = {round(MaxFuelCorrectedSSE,3)}\nRMSE = {round(MaxFuelCorrectedRMSE,3)}s\nSST = {round(MaxFuelCorrectedSST,3)}\nR2 = {round(MaxFuelCorrectedR2,3)}')
 
 plt.close(fig1)
 plt.close(fig2)
 plt.close(fig3)
 plt.close(fig4)
 plt.close(fig5)
+plt.close(fig6)
 
 #plt.legend()
 #plt.show()
