@@ -236,7 +236,7 @@ hard_stint['MinFuelCorrectedLapTime'] = hard_stint['LapTime_sec'] + (hard_stint[
 #print(hard_stint[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
 
 bfmin, afmin = np.polyfit(x, hard_stint['MinFuelCorrectedLapTime'], 1)
-print(round(afmin,3),round(bfmin,3))
+#print(round(afmin,3),round(bfmin,3))
 
 hard_stint['PredictedMinFuelCorrectedLapTime'] = afmin + bfmin * hard_stint['TyreLife']
 hard_stint['MinFuelCorrectedResidual'] = hard_stint['MinFuelCorrectedLapTime'] - hard_stint['PredictedMinFuelCorrectedLapTime']
@@ -256,7 +256,7 @@ hard_stint['MaxFuelCorrectedLapTime'] = hard_stint['LapTime_sec'] + (hard_stint[
 #print(hard_stint[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
 
 bfmax, afmax = np.polyfit(x, hard_stint['MaxFuelCorrectedLapTime'], 1)
-print(round(afmax,3),round(bfmax,3))
+#print(round(afmax,3),round(bfmax,3))
 
 hard_stint['PredictedMaxFuelCorrectedLapTime'] = afmax + bfmax * hard_stint['TyreLife']
 hard_stint['MaxFuelCorrectedResidual'] = hard_stint['MaxFuelCorrectedLapTime'] - hard_stint['PredictedMaxFuelCorrectedLapTime']
@@ -268,12 +268,312 @@ MaxFuelCorrectedR2 = 1 - MaxFuelCorrectedSSE/MaxFuelCorrectedSST
 
 #print(f'SSE = {round(MaxFuelCorrectedSSE,3)}\nRMSE = {round(MaxFuelCorrectedRMSE,3)}s\nSST = {round(MaxFuelCorrectedSST,3)}\nR2 = {round(MaxFuelCorrectedR2,3)}')
 
+#print('\n\n Stint 1 : Soft')
+
+soft_stint1 = model_laps.loc[model_laps['Stint']==1].copy()
+
+#Coefficients of the linear regression
+soft_slope, soft_intercept = np.polyfit(soft_stint1['TyreLife'],soft_stint1['LapTime_sec'],1)
+#print(f'intercept = {round(soft_intercept,3)},slope = {round(soft_slope,3)}')
+
+soft_stint1['PredictedLapTime'] = soft_intercept+soft_slope*soft_stint1['TyreLife']
+
+fig7 = plt.figure()
+compound = soft_stint1['Compound'].iloc[0]
+plt.plot(soft_stint1['TyreLife'],soft_stint1['LapTime_sec'],markers[compound],label='Lap time')
+plt.plot(soft_stint1['TyreLife'],soft_stint1['PredictedLapTime'],label='Predicted time')
+
+plt.title('Linear regression of 1st stint (soft)')
+plt.xlabel('Tyre age [lap]')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+#Introduction of residual
+soft_stint1['Residual'] = soft_stint1['LapTime_sec'] - soft_stint1['PredictedLapTime']
+
+fig8 = plt.figure()
+plt.plot(soft_stint1['TyreLife'],soft_stint1['Residual'],'+')
+plt.axhline(0,color='r')
+
+plt.title('Residual of linear regression 1st stint')
+plt.xlabel('Tyre age [laps]')
+plt.ylabel('Residual [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+mean_residual = soft_stint1['Residual'].mean()
+RMSE = np.sqrt(1/len(soft_stint1['Residual']) * (soft_stint1['Residual']**2).sum())
+max_abs_residual = soft_stint1['Residual'].abs().max()
+#print(f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s')
+
+SSE = (soft_stint1['Residual']**2).sum()
+SST = ((soft_stint1['LapTime_sec']-soft_stint1['LapTime_sec'].mean())**2).sum()
+R2 = 1 - SSE/SST
+#print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
+
+soft_stint1['FuelCorrectedLapTime'] = soft_stint1['LapTime_sec'] + (soft_stint1['LapNumber'] - soft_stint1['LapNumber'].min())*FuelEffectPerLap
+
+#print('\n\n Nominal')
+
+soft_stint1['FuelCorrectedLapTime'] = soft_stint1['LapTime_sec'] + (soft_stint1['LapNumber'] - soft_stint1['LapNumber'].min())*FuelEffectPerLap
+
+bf, af = np.polyfit(soft_stint1['TyreLife'], soft_stint1['FuelCorrectedLapTime'], 1)
+#print(f'af = {round(af,3)},bf = {round(bf,3)}')
+
+soft_stint1['PredictedFuelCorrectedLapTime'] = af + bf * soft_stint1['TyreLife']
+soft_stint1['FuelCorrectedResidual'] = soft_stint1['FuelCorrectedLapTime'] - soft_stint1['PredictedFuelCorrectedLapTime']
+
+FuelCorrectedSSE = (soft_stint1['FuelCorrectedResidual']**2).sum()
+FuelCorrectedRMSE = np.sqrt(1/len(soft_stint1['FuelCorrectedResidual'])*FuelCorrectedSSE)
+FuelCorrectedSST = ((soft_stint1['FuelCorrectedLapTime'] - soft_stint1['FuelCorrectedLapTime'].mean())**2).sum()
+FuelCorrectedR2 = 1 - FuelCorrectedSSE/FuelCorrectedSST
+
+#print(f'SSE = {round(FuelCorrectedSSE,3)}\nRMSE = {round(FuelCorrectedRMSE,3)}s\nSST = {round(FuelCorrectedSST,3)}\nR2 = {round(FuelCorrectedR2,3)}')
+
+#print('\n\n MINIMUM Case')
+
+soft_stint1['MinFuelCorrectedLapTime'] = soft_stint1['LapTime_sec'] + (soft_stint1['LapNumber'] - soft_stint1['LapNumber'].min())*MinFuelEffectPerLap
+
+bfmin, afmin = np.polyfit(soft_stint1['TyreLife'], soft_stint1['MinFuelCorrectedLapTime'], 1)
+#print(f'afmin = {round(afmin,3)},bfmin = {round(bfmin,3)}')
+
+soft_stint1['PredictedMinFuelCorrectedLapTime'] = afmin + bfmin * soft_stint1['TyreLife']
+soft_stint1['MinFuelCorrectedResidual'] = soft_stint1['MinFuelCorrectedLapTime'] - soft_stint1['PredictedMinFuelCorrectedLapTime']
+
+MinFuelCorrectedSSE = (soft_stint1['MinFuelCorrectedResidual']**2).sum()
+MinFuelCorrectedRMSE = np.sqrt(1/len(soft_stint1['MinFuelCorrectedResidual'])*MinFuelCorrectedSSE)
+MinFuelCorrectedSST = ((soft_stint1['MinFuelCorrectedLapTime'] - soft_stint1['MinFuelCorrectedLapTime'].mean())**2).sum()
+MinFuelCorrectedR2 = 1 - MinFuelCorrectedSSE/MinFuelCorrectedSST
+
+#print(f'SSE = {round(MinFuelCorrectedSSE,3)}\nRMSE = {round(MinFuelCorrectedRMSE,3)}s\nSST = {round(MinFuelCorrectedSST,3)}\nR2 = {round(MinFuelCorrectedR2,3)}')
+
+#print('\n\n MAXIMUM Case')
+
+soft_stint1['MaxFuelCorrectedLapTime'] = soft_stint1['LapTime_sec'] + (soft_stint1['LapNumber'] - soft_stint1['LapNumber'].min())*MaxFuelEffectPerLap
+
+bfmax, afmax = np.polyfit(soft_stint1['TyreLife'], soft_stint1['MaxFuelCorrectedLapTime'], 1)
+#print(f'afmax = {round(afmax,3)},bfmax = {round(bfmax,3)}')
+
+soft_stint1['PredictedMaxFuelCorrectedLapTime'] = afmax + bfmax * soft_stint1['TyreLife']
+soft_stint1['MaxFuelCorrectedResidual'] = soft_stint1['MaxFuelCorrectedLapTime'] - soft_stint1['PredictedMaxFuelCorrectedLapTime']
+
+MaxFuelCorrectedSSE = (soft_stint1['MaxFuelCorrectedResidual']**2).sum()
+MaxFuelCorrectedRMSE = np.sqrt(1/len(soft_stint1['MaxFuelCorrectedResidual'])*MaxFuelCorrectedSSE)
+MaxFuelCorrectedSST = ((soft_stint1['MaxFuelCorrectedLapTime'] - soft_stint1['MaxFuelCorrectedLapTime'].mean())**2).sum()
+MaxFuelCorrectedR2 = 1 - MaxFuelCorrectedSSE/MaxFuelCorrectedSST
+
+#print(f'SSE = {round(MaxFuelCorrectedSSE,3)}\nRMSE = {round(MaxFuelCorrectedRMSE,3)}s\nSST = {round(MaxFuelCorrectedSST,3)}\nR2 = {round(MaxFuelCorrectedR2,3)}')
+
+soft_stint1['AbsResidual'] = soft_stint1['Residual'].abs()
+print(soft_stint1[['LapNumber','TyreLife','LapTime_sec','Residual','AbsResidual']].sort_values(by="AbsResidual", ascending=False).head(5))
+
+
+
+#print('\n\n Stint 3 : Soft')
+
+soft_stint3 = model_laps.loc[model_laps['Stint']==3].copy()
+
+#Coefficients of the linear regression
+soft_slope, soft_intercept = np.polyfit(soft_stint3['TyreLife'],soft_stint3['LapTime_sec'],1)
+#print(f'intercept = {round(soft_intercept,3)},slope = {round(soft_slope,3)}')
+
+soft_stint3['PredictedLapTime'] = soft_intercept+soft_slope*soft_stint3['TyreLife']
+
+fig9 = plt.figure()
+compound = soft_stint3['Compound'].iloc[0]
+plt.plot(soft_stint3['TyreLife'],soft_stint3['LapTime_sec'],markers[compound],label='Lap time')
+plt.plot(soft_stint3['TyreLife'],soft_stint3['PredictedLapTime'],label='Predicted time')
+
+plt.title('Linear regression of 3rd stint (soft)')
+plt.xlabel('Tyre age [lap]')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+#Introduction of residual
+soft_stint3['Residual'] = soft_stint3['LapTime_sec'] - soft_stint3['PredictedLapTime']
+
+fig10 = plt.figure()
+plt.plot(soft_stint3['TyreLife'],soft_stint3['Residual'],'+')
+plt.axhline(0,color='r')
+
+plt.title('Residual of linear regression 3rd stint')
+plt.xlabel('Tyre age [laps]')
+plt.ylabel('Residual [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+mean_residual = soft_stint3['Residual'].mean()
+RMSE = np.sqrt(1/len(soft_stint3['Residual']) * (soft_stint3['Residual']**2).sum())
+max_abs_residual = soft_stint3['Residual'].abs().max()
+#print(f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s')
+
+SSE = (soft_stint3['Residual']**2).sum()
+SST = ((soft_stint3['LapTime_sec']-soft_stint3['LapTime_sec'].mean())**2).sum()
+R2 = 1 - SSE/SST
+#print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
+
+soft_stint3['FuelCorrectedLapTime'] = soft_stint3['LapTime_sec'] + (soft_stint3['LapNumber'] - soft_stint3['LapNumber'].min())*FuelEffectPerLap
+
+#print('\n\n Nominal')
+
+soft_stint3['FuelCorrectedLapTime'] = soft_stint3['LapTime_sec'] + (soft_stint3['LapNumber'] - soft_stint3['LapNumber'].min())*FuelEffectPerLap
+
+bf, af = np.polyfit(soft_stint3['TyreLife'], soft_stint3['FuelCorrectedLapTime'], 1)
+#print(f'af = {round(af,3)},bf = {round(bf,3)}')
+
+soft_stint3['PredictedFuelCorrectedLapTime'] = af + bf * soft_stint3['TyreLife']
+soft_stint3['FuelCorrectedResidual'] = soft_stint3['FuelCorrectedLapTime'] - soft_stint3['PredictedFuelCorrectedLapTime']
+
+FuelCorrectedSSE = (soft_stint3['FuelCorrectedResidual']**2).sum()
+FuelCorrectedRMSE = np.sqrt(1/len(soft_stint3['FuelCorrectedResidual'])*FuelCorrectedSSE)
+FuelCorrectedSST = ((soft_stint3['FuelCorrectedLapTime'] - soft_stint3['FuelCorrectedLapTime'].mean())**2).sum()
+FuelCorrectedR2 = 1 - FuelCorrectedSSE/FuelCorrectedSST
+
+#print(f'SSE = {round(FuelCorrectedSSE,3)}\nRMSE = {round(FuelCorrectedRMSE,3)}s\nSST = {round(FuelCorrectedSST,3)}\nR2 = {round(FuelCorrectedR2,3)}')
+
+#print('\n\n MINIMUM Case')
+
+soft_stint3['MinFuelCorrectedLapTime'] = soft_stint3['LapTime_sec'] + (soft_stint3['LapNumber'] - soft_stint3['LapNumber'].min())*MinFuelEffectPerLap
+
+bfmin, afmin = np.polyfit(soft_stint3['TyreLife'], soft_stint3['MinFuelCorrectedLapTime'], 1)
+#print(f'afmin = {round(afmin,3)},bfmin = {round(bfmin,3)}')
+
+soft_stint3['PredictedMinFuelCorrectedLapTime'] = afmin + bfmin * soft_stint3['TyreLife']
+soft_stint3['MinFuelCorrectedResidual'] = soft_stint3['MinFuelCorrectedLapTime'] - soft_stint3['PredictedMinFuelCorrectedLapTime']
+
+MinFuelCorrectedSSE = (soft_stint3['MinFuelCorrectedResidual']**2).sum()
+MinFuelCorrectedRMSE = np.sqrt(1/len(soft_stint3['MinFuelCorrectedResidual'])*MinFuelCorrectedSSE)
+MinFuelCorrectedSST = ((soft_stint3['MinFuelCorrectedLapTime'] - soft_stint3['MinFuelCorrectedLapTime'].mean())**2).sum()
+MinFuelCorrectedR2 = 1 - MinFuelCorrectedSSE/MinFuelCorrectedSST
+
+#print(f'SSE = {round(MinFuelCorrectedSSE,3)}\nRMSE = {round(MinFuelCorrectedRMSE,3)}s\nSST = {round(MinFuelCorrectedSST,3)}\nR2 = {round(MinFuelCorrectedR2,3)}')
+
+#print('\n\n MAXIMUM Case')
+
+soft_stint3['MaxFuelCorrectedLapTime'] = soft_stint3['LapTime_sec'] + (soft_stint3['LapNumber'] - soft_stint3['LapNumber'].min())*MaxFuelEffectPerLap
+
+bfmax, afmax = np.polyfit(soft_stint3['TyreLife'], soft_stint3['MaxFuelCorrectedLapTime'], 1)
+#print(f'afmax = {round(afmax,3)},bfmax = {round(bfmax,3)}')
+
+soft_stint3['PredictedMaxFuelCorrectedLapTime'] = afmax + bfmax * soft_stint3['TyreLife']
+soft_stint3['MaxFuelCorrectedResidual'] = soft_stint3['MaxFuelCorrectedLapTime'] - soft_stint3['PredictedMaxFuelCorrectedLapTime']
+
+MaxFuelCorrectedSSE = (soft_stint3['MaxFuelCorrectedResidual']**2).sum()
+MaxFuelCorrectedRMSE = np.sqrt(1/len(soft_stint3['MaxFuelCorrectedResidual'])*MaxFuelCorrectedSSE)
+MaxFuelCorrectedSST = ((soft_stint3['MaxFuelCorrectedLapTime'] - soft_stint3['MaxFuelCorrectedLapTime'].mean())**2).sum()
+MaxFuelCorrectedR2 = 1 - MaxFuelCorrectedSSE/MaxFuelCorrectedSST
+
+#print(f'SSE = {round(MaxFuelCorrectedSSE,3)}\nRMSE = {round(MaxFuelCorrectedRMSE,3)}s\nSST = {round(MaxFuelCorrectedSST,3)}\nR2 = {round(MaxFuelCorrectedR2,3)}')
+
+#Test exclure tours aberrants
+soft_stint3_test = soft_stint3.iloc[3:].copy()
+#print(soft_stint3_test[['LapNumber','TyreLife','LapTime_sec']])
+
+#Coefficients of the linear regression
+soft_slope, soft_intercept = np.polyfit(soft_stint3_test['TyreLife'],soft_stint3_test['LapTime_sec'],1)
+#print(f'intercept = {round(soft_intercept,3)},slope = {round(soft_slope,3)}')
+
+soft_stint3_test['PredictedLapTime'] = soft_intercept+soft_slope*soft_stint3_test['TyreLife']
+
+fig11 = plt.figure()
+compound = soft_stint3_test['Compound'].iloc[0]
+plt.plot(soft_stint3_test['TyreLife'],soft_stint3_test['LapTime_sec'],markers[compound],label='Lap time')
+plt.plot(soft_stint3_test['TyreLife'],soft_stint3_test['PredictedLapTime'],label='Predicted time')
+
+plt.title('Linear regression of 3rd stint (soft)')
+plt.xlabel('Tyre age [lap]')
+plt.ylabel('Lap time [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+#Introduction of residual
+soft_stint3_test['Residual'] = soft_stint3_test['LapTime_sec'] - soft_stint3_test['PredictedLapTime']
+
+fig12 = plt.figure()
+plt.plot(soft_stint3_test['TyreLife'],soft_stint3_test['Residual'],'+')
+plt.axhline(0,color='r')
+
+plt.title('Residual of linear regression 3rd stint')
+plt.xlabel('Tyre age [laps]')
+plt.ylabel('Residual [s]')
+plt.gca().xaxis.set_major_locator(MultipleLocator(1))
+plt.grid(True, alpha=0.25)
+
+mean_residual = soft_stint3_test['Residual'].mean()
+RMSE = np.sqrt(1/len(soft_stint3_test['Residual']) * (soft_stint3_test['Residual']**2).sum())
+max_abs_residual = soft_stint3_test['Residual'].abs().max()
+#print(f'Mean residual = {round(mean_residual,3)}s \nRMSE = {round(RMSE,3)}s \nMaximum absolute residual = {round(max_abs_residual,3)}s')
+
+SSE = (soft_stint3_test['Residual']**2).sum()
+SST = ((soft_stint3_test['LapTime_sec']-soft_stint3_test['LapTime_sec'].mean())**2).sum()
+R2 = 1 - SSE/SST
+#print(f'SSE = {round(SSE,3)}\nSST = {round(SST,3)}\nR2 = {round(R2,3)}')
+
+#print('\n\n Nominal')
+
+soft_stint3_test['FuelCorrectedLapTime'] = soft_stint3_test['LapTime_sec'] + (soft_stint3_test['LapNumber'] - soft_stint3_test['LapNumber'].min())*FuelEffectPerLap
+#print(soft_stint3_test[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bf, af = np.polyfit(soft_stint3_test['TyreLife'], soft_stint3_test['FuelCorrectedLapTime'], 1)
+#print(f'af = {round(af,3)},bf = {round(bf,3)}')
+
+soft_stint3_test['PredictedFuelCorrectedLapTime'] = af + bf * soft_stint3_test['TyreLife']
+soft_stint3_test['FuelCorrectedResidual'] = soft_stint3_test['FuelCorrectedLapTime'] - soft_stint3_test['PredictedFuelCorrectedLapTime']
+
+FuelCorrectedSSE = (soft_stint3_test['FuelCorrectedResidual']**2).sum()
+FuelCorrectedRMSE = np.sqrt(1/len(soft_stint3_test['FuelCorrectedResidual'])*FuelCorrectedSSE)
+FuelCorrectedSST = ((soft_stint3_test['FuelCorrectedLapTime'] - soft_stint3_test['FuelCorrectedLapTime'].mean())**2).sum()
+FuelCorrectedR2 = 1 - FuelCorrectedSSE/FuelCorrectedSST
+
+#print(f'SSE = {round(FuelCorrectedSSE,3)}\nRMSE = {round(FuelCorrectedRMSE,3)}s\nSST = {round(FuelCorrectedSST,3)}\nR2 = {round(FuelCorrectedR2,3)}')
+
+#print('\n\n MINIMUM Case')
+soft_stint3_test['MinFuelCorrectedLapTime'] = soft_stint3_test['LapTime_sec'] + (soft_stint3_test['LapNumber'] - soft_stint3_test['LapNumber'].min())*MinFuelEffectPerLap
+#print(soft_stint3_test[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bfmin, afmin = np.polyfit(soft_stint3_test['TyreLife'], soft_stint3_test['MinFuelCorrectedLapTime'], 1)
+#print(f'afmin = {round(afmin,3)},bfmin = {round(bfmin,3)}')
+
+soft_stint3_test['PredictedMinFuelCorrectedLapTime'] = afmin + bfmin * soft_stint3_test['TyreLife']
+soft_stint3_test['MinFuelCorrectedResidual'] = soft_stint3_test['MinFuelCorrectedLapTime'] - soft_stint3_test['PredictedMinFuelCorrectedLapTime']
+
+MinFuelCorrectedSSE = (soft_stint3_test['MinFuelCorrectedResidual']**2).sum()
+MinFuelCorrectedRMSE = np.sqrt(1/len(soft_stint3_test['MinFuelCorrectedResidual'])*MinFuelCorrectedSSE)
+MinFuelCorrectedSST = ((soft_stint3_test['MinFuelCorrectedLapTime'] - soft_stint3_test['MinFuelCorrectedLapTime'].mean())**2).sum()
+MinFuelCorrectedR2 = 1 - MinFuelCorrectedSSE/MinFuelCorrectedSST
+
+#print(f'SSE = {round(MinFuelCorrectedSSE,3)}\nRMSE = {round(MinFuelCorrectedRMSE,3)}s\nSST = {round(MinFuelCorrectedSST,3)}\nR2 = {round(MinFuelCorrectedR2,3)}')
+
+
+#print('\n\n MAXIMUM Case')
+
+soft_stint3_test['MaxFuelCorrectedLapTime'] = soft_stint3_test['LapTime_sec'] + (soft_stint3_test['LapNumber'] - soft_stint3_test['LapNumber'].min())*MaxFuelEffectPerLap
+#print(soft_stint3_test[['LapNumber', 'TyreLife', 'LapTime_sec', 'FuelCorrectedLapTime']])
+
+bfmax, afmax = np.polyfit(soft_stint3_test['TyreLife'], soft_stint3_test['MaxFuelCorrectedLapTime'], 1)
+#print(f'afmax = {round(afmax,3)},bfmax = {round(bfmax,3)}')
+
+soft_stint3_test['PredictedMaxFuelCorrectedLapTime'] = afmax + bfmax * soft_stint3_test['TyreLife']
+soft_stint3_test['MaxFuelCorrectedResidual'] = soft_stint3_test['MaxFuelCorrectedLapTime'] - soft_stint3_test['PredictedMaxFuelCorrectedLapTime']
+
+MaxFuelCorrectedSSE = (soft_stint3_test['MaxFuelCorrectedResidual']**2).sum()
+MaxFuelCorrectedRMSE = np.sqrt(1/len(soft_stint3_test['MaxFuelCorrectedResidual'])*MaxFuelCorrectedSSE)
+MaxFuelCorrectedSST = ((soft_stint3_test['MaxFuelCorrectedLapTime'] - soft_stint3_test['MaxFuelCorrectedLapTime'].mean())**2).sum()
+MaxFuelCorrectedR2 = 1 - MaxFuelCorrectedSSE/MaxFuelCorrectedSST
+
+#print(f'SSE = {round(MaxFuelCorrectedSSE,3)}\nRMSE = {round(MaxFuelCorrectedRMSE,3)}s\nSST = {round(MaxFuelCorrectedSST,3)}\nR2 = {round(MaxFuelCorrectedR2,3)}')
+
+
 plt.close(fig1)
 plt.close(fig2)
 plt.close(fig3)
 plt.close(fig4)
 plt.close(fig5)
 plt.close(fig6)
+plt.close(fig7)
+plt.close(fig8)
 
 #plt.legend()
-#plt.show()
+plt.show()
